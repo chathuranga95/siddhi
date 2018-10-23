@@ -393,18 +393,7 @@ public abstract class Table implements FindableProcessor, MemoryCalculable {
                 }
                 backoffRetryCounter.reset();
             } catch (ConnectionUnavailableException e) {
-                LOG.error(StringUtil.removeCRLFCharacters(ExceptionUtil.getMessageWithContext(e,
-                        siddhiAppContext)) + " Error while connecting to Table '" +
-                        StringUtil.removeCRLFCharacters(tableDefinition.getId())
-                        + "', will retry in '" + StringUtil.removeCRLFCharacters(
-                                backoffRetryCounter.getTimeInterval()) + "'.", e);
-                scheduledExecutorService.schedule(new Runnable() {
-                    @Override
-                    public void run() {
-                        connectWithRetry();
-                    }
-                }, backoffRetryCounter.getTimeIntervalMillis(), TimeUnit.MILLISECONDS);
-                backoffRetryCounter.increment();
+                scheduledReConnect(e);
             } catch (RuntimeException e) {
                 LOG.error(StringUtil.removeCRLFCharacters(ExceptionUtil.getMessageWithContext(e,
                         siddhiAppContext)) + " . Error while connecting to Table '" +
@@ -412,6 +401,21 @@ public abstract class Table implements FindableProcessor, MemoryCalculable {
                 throw e;
             }
         }
+    }
+
+    private void scheduledReConnect(ConnectionUnavailableException e) {
+        LOG.error(StringUtil.removeCRLFCharacters(ExceptionUtil.getMessageWithContext(e,
+                siddhiAppContext)) + " Error while connecting to Table '" +
+                StringUtil.removeCRLFCharacters(tableDefinition.getId())
+                + "', will retry in '" + StringUtil.removeCRLFCharacters(
+                backoffRetryCounter.getTimeInterval()) + "'.", e);
+        scheduledExecutorService.schedule(new Runnable() {
+            @Override
+            public void run() {
+                connectWithRetry();
+            }
+        }, backoffRetryCounter.getTimeIntervalMillis(), TimeUnit.MILLISECONDS);
+        backoffRetryCounter.increment();
     }
 
     /**
